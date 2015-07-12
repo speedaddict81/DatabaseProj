@@ -1,0 +1,67 @@
+--updates the install cost for given tag and revision
+--numbers after inserting
+--
+--
+CREATE TRIGGER 'Update_Costs'
+AFTER INSERT
+ON 'TAG' FOR EACH ROW
+BEGIN
+	DECLARE mat_cost1		DECIMAL(8,2);
+	DECLARE labor_cost1		DECIMAL(8,2);
+	DECLARE eng_cost1		DECIMAL(8,2);
+
+	SELECT mat_cost1 = 'Material_Cost', labor_cost1 = 'Labor_Cost'*'Labor_Hours', 
+			eng_cost1 = 'Engineering_Cost'*'Engineering_Hours'
+	FROM 'TAG'
+	WHERE 'Tag_No' = NEW.'Tag_No' AND 'Rev_No' = NEW.'Rev_No';
+
+	UPDATE 'TAG'
+	SET 'Install_Cost'= (mat_cost1 + labor_cost1 + eng_cost1)
+	WHERE ('Tag_No' = NEW.'Tag_No' AND 'Rev_No' = NEW.'Rev_No');
+END
+--updates the install cost for given tag and revision
+--numbers after updating
+--
+--
+CREATE TRIGGER 'Update_Costs'
+AFTER UPDATE
+ON 'TAG' FOR EACH ROW
+BEGIN
+	DECLARE mat_cost1		DECIMAL(8,2);
+	DECLARE labor_cost1		DECIMAL(8,2);
+	DECLARE eng_cost1		DECIMAL(8,2);
+
+	SELECT mat_cost1 = Material_Cost, labor_cost1 = Labor_Cost*Labor_Hours, 
+			eng_cost1 = Engineering_Cost*Engineering_Hours
+	FROM TAG
+	WHERE Tag_No = NEW.Tag_No AND Rev_No = NEW.Rev_No;
+
+	UPDATE TAG
+	SET Install_Cost = (mat_cost1 + labor_cost1 + eng_cost1)
+	WHERE (Tag_No = NEW.Tag_No AND Rev_No = NEW.Rev_No);
+END
+--trigger for taking an update to a tag and instead inserting a new tag.
+--this trigger also makes sure to update the inserted tag as the newest
+--revision of that tag.
+--this trigger also makes sure to update the revision you were trying to 
+--update as to not be the last revision of that tag (changes last_rev = 0.
+CREATE TRIGGER Update_Rev
+BEFORE UPDATE
+ON TAG FOR EACH ROW
+BEGIN
+	INSERT INTO TAG (Tag_No, Rev_No, Last_Rev, Revised_Date, Sub_Category, Complexity, Lead_Time,
+					Tag_Desription, Tag_Notes, Price_Notes, Material_Cost, Labor_Hours, Labor_Cost,
+					Engineering_Hours, Engineering_Cost, Install_Cost, PriceExp, Att_flag, Tag_Member,
+					Fo_Flag) VALUES (OLD.Tag_No, OLD.Rev_No, 0, OLD.Revised_Date, OLD.Sub_Category, OLD.Complexity,
+					OLD.Lead_Time, OLD.Tag_Description, OLD.Tag_Notes, OLD.Price_Notes, OLD.Material_Cost, OLD.Labor_Hours,
+					OLD.Labor_Cost, OLD.Engineering_Hours, OLD.Engineering_Cost, OLD.Install_Cost, OLD.PriceExp, OLD.Att_flag,
+					OLD.Tag_Member, OLD.Fo_Flag);
+					
+	UPDATE TAG
+	SET Last_Rev = 1
+	WHERE Tag_No = NEW.Tag_No AND Rev_No = NEW.Rev_No;
+
+	UPDATE TAG
+	SET Rev_No = OLD.Rev_No + 1
+	WHERE Tag_No = NEW.Tag_No AND Rev_No = NEW.Rev_No;
+END
